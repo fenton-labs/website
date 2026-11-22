@@ -1,6 +1,7 @@
 import { MathUtils, OrthographicCamera, Scene, WebGLRenderer } from 'three';
-import { createParticleField } from './sketches/particle-field.js';
-import { createWireKnot } from './sketches/wire-knot.js';
+import { ParticleField } from './sketches/particle-field/_main_.js';
+import { WireKnot } from './sketches/wire-knot/_main_.js';
+import wireKnotSettings from './sketches/wire-knot/_settings_.js';
 import './styles.css';
 
 const aboutButton = document.querySelector('.about-button');
@@ -25,10 +26,10 @@ function startGallery(renderer) {
   const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 30);
   camera.position.z = 8;
 
-  const knot = createWireKnot();
-  const particles = createParticleField();
+  const env = { scene, camera, renderer };
+  const knot = new WireKnot(env);
+  const particles = new ParticleField(env);
   particles.object.renderOrder = 1;
-  scene.add(knot.object, particles.object);
 
   const label = document.querySelector('#sketch-name');
   const scrollHint = document.querySelector('.scroll-hint');
@@ -48,7 +49,7 @@ function startGallery(renderer) {
     frameId = undefined;
     const delta = reducedMotion.matches || previousTime === undefined
       ? 0
-      : Math.min((now - previousTime) / 1000, 0.05);
+      : Math.min(now - previousTime, 50);
     previousTime = now;
 
     const root = document.documentElement;
@@ -61,14 +62,14 @@ function startGallery(renderer) {
 
     if (knot.object.visible) {
       knotTime += delta;
-      knot.object.material.opacity = 0.83 * (1 - blend);
-      knot.update(knotTime);
+      knot.object.material.opacity = wireKnotSettings.opacity * (1 - blend);
+      knot.animate({ time: knotTime });
     }
 
     if (particles.object.visible) {
       particleTime += delta;
       particles.object.material.opacity = blend;
-      particles.update(particleTime);
+      particles.animate({ time: particleTime });
     }
 
     const name = progress < 0.42 ? 'Wire Knot' : progress > 0.58 ? 'Particle Field' : 'Transition';
@@ -95,7 +96,7 @@ function startGallery(renderer) {
 
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setSize(width, height, false);
-    particles.object.material.size = Math.max(1.25, Math.min(width, height) / 350);
+    particles.resize(width, height);
     requestFrame();
   }
 
@@ -106,9 +107,20 @@ function startGallery(renderer) {
     requestFrame();
   }
 
-  window.addEventListener('scroll', requestFrame, { passive: true });
-  window.addEventListener('resize', resize);
-  document.addEventListener('visibilitychange', resetAnimation);
-  reducedMotion.addEventListener('change', resetAnimation);
+  const listeners = new AbortController();
+  const { signal } = listeners;
+  window.addEventListener('scroll', requestFrame, { passive: true, signal });
+  window.addEventListener('resize', resize, { signal });
+  document.addEventListener('visibilitychange', resetAnimation, { signal });
+  reducedMotion.addEventListener('change', resetAnimation, { signal });
+  window.addEventListener('pagehide', (event) => {
+    if (event.persisted) return;
+
+    listeners.abort();
+    window.cancelAnimationFrame(frameId);
+    knot.cleanup();
+    particles.cleanup();
+    renderer.dispose();
+  }, { signal });
   resize();
 }

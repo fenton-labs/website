@@ -17,6 +17,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Read utilities submodule revision
+        id: utilities
+        run: |
+          revision=$(git rev-parse --verify HEAD:shared/3x-utils)
+          echo "sha=$revision" >> "$GITHUB_OUTPUT"
+      - name: Check out shared utilities
+        uses: actions/checkout@v6
+        with:
+          repository: fenton-labs/3xperiments-utils
+          ref: ${{ steps.utilities.outputs.sha }}
+          path: shared/3x-utils
+          token: ${{ secrets.UTILS_READ_TOKEN }}
+          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 24
