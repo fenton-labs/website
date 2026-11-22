@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Generative art experiments by Fenton Labs." />
+    <meta name="theme-color" content="#111111" />
+    <link rel="icon" href="data:," />
+    <title>Fenton Labs</title>
+  </head>
+  <body>
+    <main class="gallery">
+      <canvas id="artwork" aria-hidden="true"></canvas>
+
+      <header class="site-header">
+        <h1>Fenton Labs</h1>
+        <button class="about-button" type="button" aria-expanded="false" aria-controls="about">
+          About
+        </button>
+        <section class="about-panel" id="about" aria-label="About Fenton Labs" hidden>
+          <p>Fenton Labs is my space for exploring generative art and creative coding on the web.</p>
+        </section>
+      </header>
+
+      <div class="sketch-caption">
+        <p id="sketch-name" aria-live="polite">Wire Knot</p>
+        <p class="scroll-hint">Scroll to explore</p>
+      </div>
+
+      <p class="artwork-fallback" hidden>This artwork requires WebGL 2.</p>
+      <noscript><p class="artwork-fallback">Enable JavaScript to view the artwork.</p></noscript>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

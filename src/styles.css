@@ -1,0 +1,127 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  color: #f5eddf;
+  background: #111;
+  --muted: #b8afa2;
+  --rule: #f5eddf38;
+  --inset: clamp(1rem, 4vw, 3.25rem);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body, h1, p {
+  margin: 0;
+}
+
+.gallery {
+  min-height: 240vh;
+}
+
+#artwork {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, #201e1c, #111 70%);
+}
+
+.site-header, .sketch-caption {
+  position: fixed;
+  right: var(--inset);
+  left: var(--inset);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  pointer-events: none;
+}
+
+.site-header {
+  top: max(0.75rem, env(safe-area-inset-top));
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+h1 {
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.about-button {
+  min-height: 44px;
+  padding: 0.45rem 0.95rem;
+  border: 1px solid var(--rule);
+  border-radius: 2rem;
+  color: inherit;
+  background: #111;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.about-button:hover, .about-button[aria-expanded="true"] {
+  background: #2b2824;
+}
+
+.about-button:focus-visible {
+  outline: 2px solid #f5eddf;
+  outline-offset: 3px;
+}
+
+.about-panel {
+  position: absolute;
+  top: calc(100% + 0.65rem);
+  right: 0;
+  width: min(100%, 19rem);
+  padding: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.5rem;
+  background: #181715;
+  line-height: 1.5;
+  pointer-events: auto;
+}
+
+.sketch-caption {
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  align-items: baseline;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+  text-shadow: 0 1px 6px #111;
+}
+
+#sketch-name {
+  font-size: clamp(1.25rem, 3vw, 1.85rem);
+  font-weight: 550;
+  letter-spacing: -0.035em;
+}
+
+.scroll-hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+  text-align: right;
+}
+
+.artwork-fallback {
+  position: fixed;
+  top: 50%;
+  right: var(--inset);
+  left: var(--inset);
+  transform: translateY(-50%);
+  color: var(--muted);
+  text-align: center;
+}
+
+.gallery:has(.artwork-fallback:not([hidden])) {
+  min-height: 100vh;
+}
+
+.gallery:has(.artwork-fallback:not([hidden])) .sketch-caption {
+  display: none;
+}
