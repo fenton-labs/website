@@ -33,9 +33,14 @@ export class WireKnot {
 
     geometry.setAttribute('color', new BufferAttribute(colors, 3));
 
-    const material = new LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false });
+    const material = new LineBasicMaterial({
+      vertexColors: true,
+      opacity: settings.opacity,
+      transparent: true,
+      depthWrite: false,
+    });
     this.object = new LineSegments(geometry, material);
-    this.env.scene.add(this.object);
+    this.env.addScene(this.object);
   }
 
   animate(effectController) {

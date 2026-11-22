@@ -41,7 +41,7 @@ export class ParticleField {
 
     const material = new PointsMaterial({ size: 2, vertexColors: true, transparent: true, depthWrite: false });
     this.object = new Points(geometry, material);
-    this.env.scene.add(this.object);
+    this.env.addScene(this.object);
   }
 
   animate(effectController) {

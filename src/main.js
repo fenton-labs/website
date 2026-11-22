@@ -1,35 +1,43 @@
-import { MathUtils, OrthographicCamera, Scene, WebGLRenderer } from 'three';
+import { MathUtils, WebGLRenderer } from 'three';
+import { RendererUtil } from '../shared/3x-utils/lib/util-renderer.js';
+import { Crossfade } from './crossfade.js';
 import { ParticleField } from './sketches/particle-field/_main_.js';
+import particleSettings from './sketches/particle-field/_settings_.js';
 import { WireKnot } from './sketches/wire-knot/_main_.js';
-import wireKnotSettings from './sketches/wire-knot/_settings_.js';
+import knotSettings from './sketches/wire-knot/_settings_.js';
 import './styles.css';
 
-const aboutButton = document.querySelector('.about-button');
-const aboutPanel = document.querySelector('#about');
+// The fade covers the middle of the page, leaving each sketch fully visible at its end.
+const FADE = .05
 
-aboutButton.addEventListener('click', () => {
-  aboutPanel.hidden = !aboutPanel.hidden;
-  aboutButton.setAttribute('aria-expanded', String(!aboutPanel.hidden));
-});
+const FADE_START = FADE;
+const FADE_END = 1 - FADE;
 
-const canvas = document.querySelector('#artwork');
-const context = canvas.getContext('webgl2', { alpha: true, antialias: true });
+setupAboutPanel();
+startGallery(document.querySelector('#artwork'));
 
-if (context) {
-  startGallery(new WebGLRenderer({ canvas, context, alpha: true, antialias: true }));
-} else {
-  document.querySelector('.artwork-fallback').hidden = false;
+function setupAboutPanel() {
+  const button = document.querySelector('.about-button');
+  const panel = document.querySelector('#about');
+
+  button.addEventListener('click', () => {
+    panel.hidden = !panel.hidden;
+    button.setAttribute('aria-expanded', String(!panel.hidden));
+  });
 }
 
-function startGallery(renderer) {
-  const scene = new Scene();
-  const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 30);
-  camera.position.z = 8;
+function startGallery(canvas) {
+  const context = canvas.getContext('webgl2', { alpha: true, antialias: true });
+  if (!context) {
+    document.querySelector('.artwork-fallback').hidden = false;
+    return;
+  }
 
-  const env = { scene, camera, renderer };
-  const knot = new WireKnot(env);
-  const particles = new ParticleField(env);
-  particles.object.renderOrder = 1;
+  // The gallery owns the WebGL context. Each sketch gets its own scene and camera.
+  const renderer = new WebGLRenderer({ canvas, context, alpha: true, antialias: true });
+  const knot = new WireKnot(new RendererUtil(knotSettings, { renderer }));
+  const particles = new ParticleField(new RendererUtil(particleSettings, { renderer }));
+  const crossfade = new Crossfade(renderer);
 
   const label = document.querySelector('#sketch-name');
   const scrollHint = document.querySelector('.scroll-hint');
@@ -39,88 +47,112 @@ function startGallery(renderer) {
   let knotTime = 0;
   let particleTime = 0;
 
+  function render(now) {
+    frameId = undefined;
+    // Use milliseconds for the sketch clocks and cap the step after a slow frame.
+    const delta = reducedMotion.matches || previousTime === undefined
+      ? 0
+      : Math.min(now - previousTime, 50);
+    previousTime = now;
+
+    const progress = getScrollProgress();
+    const blend = MathUtils.clamp((progress - FADE_START) / (FADE_END - FADE_START), 0, 1);
+    renderSketches(blend, delta);
+    updateCaption(progress);
+
+    // With reduced motion, scroll and resize events still request a frame.
+    if (!reducedMotion.matches) requestFrame();
+  }
+
+  function getScrollProgress() {
+    // Derive progress from the current scroll position so it tracks in either direction.
+    const root = document.documentElement;
+    const scrollRange = root.scrollHeight - root.clientHeight;
+    return MathUtils.clamp(window.scrollY / Math.max(1, scrollRange), 0, 1);
+  }
+
+  function renderSketches(blend, delta) {
+    // Each sketch keeps its own elapsed time. A hidden sketch resumes from where it paused.
+    if (blend < 1) {
+      knotTime += delta;
+      knot.animate({ time: knotTime });
+    }
+    if (blend > 0) {
+      particleTime += delta;
+      particles.animate({ time: particleTime });
+    }
+
+    if (blend === 0) {
+      knot.env.render(null);
+    } else if (blend === 1) {
+      particles.env.render(null);
+    } else {
+      // Only the overlap needs two offscreen renders and a full-screen blend.
+      const textureA = knot.env.render(crossfade.targetA);
+      const textureB = particles.env.render(crossfade.targetB);
+      crossfade.render(textureA, textureB, blend);
+    }
+  }
+
+  function updateCaption(progress) {
+    // Show the transition label around the middle of the fade.
+    let name = 'Transition';
+    if (progress < 0.42) name = 'Wire Knot';
+    if (progress > 0.58) name = 'Particle Field';
+    if (label.textContent !== name) label.textContent = name;
+
+    const hint = progress >= FADE_END ? 'Scroll back to revisit' : 'Scroll to explore';
+    if (scrollHint.textContent !== hint) scrollHint.textContent = hint;
+  }
+
+  function resize() {
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    // Limit the drawing buffer size on high-density displays.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setSize(width, height, false);
+    crossfade.resize(canvas.width, canvas.height);
+    knot.env.resize(width, height);
+    particles.env.resize(width, height);
+    particles.resize(width, height);
+    requestFrame();
+  }
+
   function requestFrame() {
     if (frameId === undefined && !document.hidden) {
       frameId = window.requestAnimationFrame(render);
     }
   }
 
-  function render(now) {
-    frameId = undefined;
-    const delta = reducedMotion.matches || previousTime === undefined
-      ? 0
-      : Math.min(now - previousTime, 50);
-    previousTime = now;
-
-    const root = document.documentElement;
-    const scrollRange = root.scrollHeight - root.clientHeight;
-    const progress = MathUtils.clamp(window.scrollY / Math.max(1, scrollRange), 0, 1);
-    const blend = MathUtils.smoothstep(progress, 0.12, 0.88);
-
-    knot.object.visible = blend < 1;
-    particles.object.visible = blend > 0;
-
-    if (knot.object.visible) {
-      knotTime += delta;
-      knot.object.material.opacity = wireKnotSettings.opacity * (1 - blend);
-      knot.animate({ time: knotTime });
-    }
-
-    if (particles.object.visible) {
-      particleTime += delta;
-      particles.object.material.opacity = blend;
-      particles.animate({ time: particleTime });
-    }
-
-    const name = progress < 0.42 ? 'Wire Knot' : progress > 0.58 ? 'Particle Field' : 'Transition';
-    if (label.textContent !== name) label.textContent = name;
-
-    const hint = progress >= 0.88 ? 'Scroll back to revisit' : 'Scroll to explore';
-    if (scrollHint.textContent !== hint) scrollHint.textContent = hint;
-
-    renderer.render(scene, camera);
-    if (!reducedMotion.matches) requestFrame();
-  }
-
-  function resize() {
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    const aspect = width / height;
-    const halfHeight = 3.2 / Math.min(1, aspect);
-
-    camera.left = -halfHeight * aspect;
-    camera.right = halfHeight * aspect;
-    camera.top = halfHeight;
-    camera.bottom = -halfHeight;
-    camera.updateProjectionMatrix();
-
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    renderer.setSize(width, height, false);
-    particles.resize(width, height);
-    requestFrame();
-  }
-
   function resetAnimation() {
     window.cancelAnimationFrame(frameId);
     frameId = undefined;
+    // Start the next frame with a fresh timestamp after a visibility or motion change.
     previousTime = undefined;
     requestFrame();
   }
 
-  const listeners = new AbortController();
-  const { signal } = listeners;
-  window.addEventListener('scroll', requestFrame, { passive: true, signal });
-  window.addEventListener('resize', resize, { signal });
-  document.addEventListener('visibilitychange', resetAnimation, { signal });
-  reducedMotion.addEventListener('change', resetAnimation, { signal });
-  window.addEventListener('pagehide', (event) => {
+  function disposeGallery(event) {
+    // Keep the gallery alive when the browser caches the page for Back or Forward.
     if (event.persisted) return;
 
     listeners.abort();
     window.cancelAnimationFrame(frameId);
     knot.cleanup();
     particles.cleanup();
+    knot.env.dispose();
+    particles.env.dispose();
+    crossfade.dispose();
     renderer.dispose();
-  }, { signal });
+  }
+
+  // Use one signal so teardown removes all of the gallery's event listeners.
+  const listeners = new AbortController();
+  const { signal } = listeners;
+  window.addEventListener('scroll', requestFrame, { passive: true, signal });
+  window.addEventListener('resize', resize, { signal });
+  document.addEventListener('visibilitychange', resetAnimation, { signal });
+  reducedMotion.addEventListener('change', resetAnimation, { signal });
+  window.addEventListener('pagehide', disposeGallery, { signal });
   resize();
 }

@@ -16,7 +16,9 @@ Open `http://localhost:5173/website/`. To check the production build locally, ru
 
 ## Sketches
 
-Each sketch in `src/sketches/` has a Chromaton-style `_main_.js` class and `_settings_.js`. The class adds its objects to the supplied `env.scene`, updates through `animate(effectController)` with `effectController.time` in milliseconds, and releases its resources in `cleanup()`. The gallery supplies the shared scene, camera, and renderer, and decides which sketches to animate from the scroll position.
+Each sketch in `src/sketches/` has a Chromaton-style `_main_.js` class and `_settings_.js`. It adds objects through `env.addScene()`, updates through `animate(effectController)` with `effectController.time` in milliseconds, and releases its resources in `cleanup()`. The shared `RendererUtil` gives each sketch its own scene and camera on the gallery's single WebGL renderer. The sketches use `renderer.orbitControls: false` in their settings so touch gestures scroll the page.
+
+The gallery renders a single sketch directly at either end of the scroll range. During the fade it renders both sketches offscreen and blends their textures. To enable independent postprocessing, set `post` in a sketch's `_settings_.js`, for example `post: { rgbShift: { amount: 0.002 } }`. During a fade the compositor uses each enabled composer's finished `readBuffer.texture`, which should stay in linear color with premultiplied alpha for blending.
 
 ## Deployment
 
