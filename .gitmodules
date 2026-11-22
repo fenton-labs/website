@@ -1,0 +1,3 @@
+[submodule "shared/3x-utils"]
+	path = shared/3x-utils
+	url = https://github.com/fenton-labs/3xperiments-utils.git
